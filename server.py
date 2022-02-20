@@ -19,7 +19,7 @@ __all__ = (
 	"getApp",
 )
 
-# {{{ FizzBuzz Request handler
+# {{{ FizzBuzz Handler
 
 class FizzBuzzHandler(RequestHandler):
 	CONTENT_TYPES = ["application/json", "application/x-json"]
@@ -27,6 +27,44 @@ class FizzBuzzHandler(RequestHandler):
 	HTTP_BAD_REQ_CODE = 400
 	HTTP_STATUS_OK = 200
 
+	def _check_content_type(self):
+		content_type = self.request.headers.get("Content-Type")
+		if content_type is None:
+			self.error = {
+				"code": self.HTTP_BAD_REQ_CODE,
+				"msg": "invalid Content-Type",
+			}
+			return False
+		content_type = content_type.lstrip()
+		for expected_ctype in self.CONTENT_TYPES:
+			if content_type.startswith(expected_ctype):
+				return True
+		self.error = {
+			"code": self.HTTP_BAD_REQ_CODE,
+			"msg": (f"accepted content types are: {self.CONTENT_TYPES}, "
+                    f" got {content_type}"),
+		}
+		return False
+
+	def _set_reply_content_type(self):
+		self.set_header("Content-Type", self.REPLY_CONTENT_TYPE)
+
+	def _reply_error_and_finish(self):
+		assert (self.error)
+		self._set_reply_content_type()
+		self.set_status(self.error.get("code"))
+		self.finish(json_encode({"error": self.error.get("msg")}))
+		LOGGER.info("error on request: %s", self.error)
+
+	def _reply_success(self, key, val):
+		self._set_reply_content_type()
+		self.set_status(self.HTTP_STATUS_OK)
+		self.finish(json_encode({key: val}))
+
+# }}}
+# {{{ FizzBuzz Sequence handler
+
+class FizzBuzzSequenceHandler(FizzBuzzHandler):
 	def initialize(self):
 		self.error = None
 
@@ -62,51 +100,21 @@ class FizzBuzzHandler(RequestHandler):
 		# provided to the limit. So run this blocking part asynchronously
 		# for a better handling of simultaneous requests.
 		seq = await IOLoop.current().run_in_executor(None, seqGenerator.sequence)
-		self._reply_success(seq)
-
-	# {{{ Private helpers
-
-	def _check_content_type(self):
-		content_type = self.request.headers.get("Content-Type")
-		if content_type is None:
-			self.error = {
-				"code": self.HTTP_BAD_REQ_CODE,
-				"msg": "invalid Content-Type",
-			}
-			return False
-		content_type = content_type.lstrip()
-		for expected_ctype in self.CONTENT_TYPES:
-			if content_type.startswith(expected_ctype):
-				return True
-		self.error = {
-			"code": self.HTTP_BAD_REQ_CODE,
-			"msg": (f"accepted content types are: {self.CONTENT_TYPES}, "
-                    f" got {content_type}"),
-		}
-		return False
-
-	def _set_reply_content_type(self):
-		self.set_header("Content-Type", self.REPLY_CONTENT_TYPE)
-
-	def _reply_error_and_finish(self):
-		assert (self.error)
-		self._set_reply_content_type()
-		self.set_status(self.error.get("code"))
-		self.finish(json_encode({"error": self.error.get("msg")}))
-		LOGGER.info("error on request: %s", self.error)
-
-	def _reply_success(self, sequence):
-		self._set_reply_content_type()
-		self.set_status(self.HTTP_STATUS_OK)
-		self.finish(json_encode({"sequence": sequence}))
+		self._reply_success("sequence", seq)
 		LOGGER.info(f"successfull sequence generated for: %s", self.retrievedArgs)
-	
-	# }}}
+
+# }}}
+# {{{ FizzBuzz Statistics handler
+
+class FizzBuzzStatisticsHandler(FizzBuzzHandler):
+	pass
+
 # }}}
 
 def getApp():
 	return Application([
-        (r"/fizzbuzz/sequence", FizzBuzzHandler),
+		(r"/fizzbuzz/sequence", FizzBuzzSequenceHandler),
+		(r"/fizzbuzz/statistics", FizzBuzzStatisticsHandler),
     ])
 
 def startServer():

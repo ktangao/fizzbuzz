@@ -34,6 +34,19 @@ class TestFizzBuzzServer(testing.AsyncHTTPTestCase):
 			body=json_encode({"int1": 3, "int2": 5, "limit": 1000000, "str1": "fizz", "str2": "buzz"}),
 		)
 		self.assertEqual(resp.code, self.HTTP_STATUS_OK)
+
+	def test_too_big_limit_request(self):
+		limit = 10000000
+		resp = self.fetch(
+			"/fizzbuzz/sequence",
+			method="POST",
+			headers={"Content-Type": "application/json"},
+			body=json_encode({"int1": 3, "int2": 5, "limit": limit, "str1": "fizz", "str2": "buzz"}),
+		)
+		self.assertEqual(resp.code, self.HTTP_STATUS_BAD_REQUEST)
+		res = json_decode(resp.body).get("error")
+		want = f"limit {limit} cannot be bigger that 1000000"
+		self.assertEqual(res, want)
 		
 	def test_missing_argument(self):
 		resp = self.fetch(

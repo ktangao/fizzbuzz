@@ -12,7 +12,8 @@ class FizzBuzzSeqGenerator:
 		seq = fizzbuzz.sequence()
 	"""
 	
-	def __init__(self, int1, int2, limit, str1, str2):
+	def __init__(self, int1, int2, limit, str1, str2, maxLimit=1000000):
+		self.maxLimit = maxLimit
 		self.int1 = int1
 		self.int2 = int2
 		self.limit = limit
@@ -33,6 +34,8 @@ class FizzBuzzSeqGenerator:
 		if self.limit <= 1:
 			raise ValueError(f"the provided limit ({self.limit}) "
                              "cannot be lower or equal to 1")
+		if self.limit > self.maxLimit:
+			raise ValueError(f"limit {self.limit} cannot be bigger that {self.maxLimit}")
 		if self.int1 > self.limit or self.int2 > self.limit:
 			raise ValueError(f"int1 ({self.int1}) and int2 ({self.int2}) "
                              f"cannot be bigger than the limit ({self.limit})")

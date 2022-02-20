@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from tornado import testing
+from tornado import testing, gen
 from tornado.escape import json_encode, json_decode
 
 from server import getApp
@@ -91,7 +91,28 @@ class TestFizzBuzzServer(testing.AsyncHTTPTestCase):
 			method="GET",
 		)
 		self.assertEqual(resp.code, self.HTTP_STATUS_METHOD_NO_ALLOWED)
-	
+
+class TestLoadFizzBuzzServer(testing.AsyncHTTPTestCase):
+	HTTP_STATUS_OK = 200
+
+	def get_app(self):
+		return getApp()
+
+	@testing.gen_test
+	async def test_500_parallel_req(self):
+		load = 500
+		results = await gen.multi([
+			self.http_client.fetch(
+				self.get_url('/fizzbuzz/sequence'),
+				method="POST",
+				headers={"Content-Type": "application/json"},
+				body=json_encode({"int1": 3, "int2": 5, "limit": 100, "str1": "fizz", "str2": "buzz"}),
+				connect_timeout=10,
+				request_timeout=10,
+			) for _ in range(load)
+		])
+		for res in results:
+			self.assertEqual(res.code, self.HTTP_STATUS_OK)
 
 if __name__ == "__main__":
 	testing.main()

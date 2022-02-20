@@ -13,6 +13,11 @@ from lib.fizzbuzz import FizzBuzzSeqGenerator
 logging.basicConfig(format="%(name)s: %(asctime)s: %(levelname)s: %(message)s")
 LOGGER = logging.getLogger("fizzbuzz")
 LOGGER.setLevel(logging.INFO)
+IS_SERVER_STARTED = False
+
+__all__ = (
+	"getApp",
+)
 
 # {{{ FizzBuzz Request handler
 
@@ -21,7 +26,7 @@ class FizzBuzzHandler(RequestHandler):
 	REPLY_CONTENT_TYPE = "application/json; charset=UTF-8"
 	HTTP_BAD_REQ_CODE = 400
 	HTTP_STATUS_OK = 200
-	
+
 	def initialize(self):
 		self.error = None
 
@@ -95,17 +100,30 @@ class FizzBuzzHandler(RequestHandler):
 		self.set_status(self.HTTP_STATUS_OK)
 		self.finish(json_encode({"sequence": sequence}))
 		LOGGER.info(f"successfull sequence generated for: %s", self.retrievedArgs)
-		
+	
 	# }}}
 # }}}
 
-def app():
+def getApp():
 	return Application([
         (r"/fizzbuzz/sequence", FizzBuzzHandler),
     ])
-	
-if __name__ == "__main__":
+
+def startServer():
+	global IS_SERVER_STARTED
+	if IS_SERVER_STARTED:
+		return
 	port = os.getenv("FIZZBUZZ_SERVER_PORT", "8888")
-	app().listen(int(port))
+	getApp().listen(int(port))
 	LOGGER.info("server started")
+	IS_SERVER_STARTED = True
 	IOLoop.current().start()
+
+def stopServer():
+	global IS_SERVER_STARTED
+	IOLoop.current().stop()
+	IS_SERVER_STARTED = False
+	LOGGER.info("server stoped")
+
+if __name__ == "__main__":
+	startServer()

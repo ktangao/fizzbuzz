@@ -40,7 +40,7 @@ class FizzBuzzHandler(RequestHandler):
 				return
 			self.retrievedArgs[key] = str(val).strip()
 
-	def post(self):
+	async def post(self):
 		if self.error is not None:
 			self._reply_error_and_finish()
 			return
@@ -53,7 +53,11 @@ class FizzBuzzHandler(RequestHandler):
 			}
 			self._reply_error_and_finish()
 			return
-		self._reply_success(seqGenerator.sequence())
+		# Retrieving the sequence may take some time depending on the user
+		# provided to the limit. So run this blocking part asynchronously
+		# for a better handling of simultaneous requests.
+		seq = await IOLoop.current().run_in_executor(None, seqGenerator.sequence)
+		self._reply_success(seq)
 
 	# {{{ Private helpers
 

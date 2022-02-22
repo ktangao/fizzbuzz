@@ -5,7 +5,7 @@ description = ""
 authors = ["Khaled Tangao <ktangao@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.6"
 
 # aynchronous web framework
 tornado = "~=6.1"

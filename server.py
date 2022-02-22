@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from functools import partial
 import os 
 import logging
 
@@ -8,6 +9,7 @@ from tornado.escape import (json_decode, json_encode)
 from tornado.ioloop import IOLoop
 from tornado.web import (RequestHandler, Application)
 
+from lib.db import RequestsDB
 from lib.fizzbuzz import FizzBuzzSeqGenerator
 
 logging.basicConfig(format="%(name)s: %(asctime)s: %(levelname)s: %(message)s")
@@ -65,7 +67,8 @@ class FizzBuzzHandler(RequestHandler):
 # {{{ FizzBuzz Sequence handler
 
 class FizzBuzzSequenceHandler(FizzBuzzHandler):
-	def initialize(self):
+	def initialize(self, db=None):
+		self.db = db
 		self.error = None
 
 	def prepare(self):
@@ -87,6 +90,7 @@ class FizzBuzzSequenceHandler(FizzBuzzHandler):
 		if self.error is not None:
 			self._reply_error_and_finish()
 			return
+
 		try:
 			seqGenerator = FizzBuzzSeqGenerator(**self.retrievedArgs)
 		except ValueError as err:
@@ -96,12 +100,39 @@ class FizzBuzzSequenceHandler(FizzBuzzHandler):
 			}
 			self._reply_error_and_finish()
 			return
+
+		# check if request is on the db just return the retrieved value.
+		# make the db interaction asynchroneous.
+		self.req_id = self._get_req_id()
+		if self.db:
+			self.sequence = await IOLoop.current().run_in_executor(
+				None, partial(self.db.get, self.req_id))
+			self.sequence = self.sequence[0] if self.sequence is not None else None
+			if self.sequence:
+				self._reply_success("sequence", self.sequence)
+				return
+
 		# Retrieving the sequence may take some time depending on the user
 		# provided to the limit. So run this blocking part asynchronously
 		# for a better handling of simultaneous requests.
-		seq = await IOLoop.current().run_in_executor(None, seqGenerator.sequence)
-		self._reply_success("sequence", seq)
+		self.sequence = await IOLoop.current().run_in_executor(None, seqGenerator.sequence)
+		self._reply_success("sequence", self.sequence)
+
+	async def on_finish(self):
+		if self.error is not None:
+			return
+		if self.db:
+			await IOLoop.current().run_in_executor(
+				None, partial(self.db.add, self.req_id, self.sequence))
+
+	def _reply_success(self, key, val):
+		super()._reply_success(key, val)
 		LOGGER.info(f"successfull sequence generated for: %s", self.retrievedArgs)
+
+	def _get_req_id(self):
+		return (f"{self.retrievedArgs['int1']}_{self.retrievedArgs['int2']}_"
+		        f"{self.retrievedArgs['limit']}_{self.retrievedArgs['str1']}_"
+		        f"{self.retrievedArgs['str2']}")
 
 # }}}
 # {{{ FizzBuzz Statistics handler
@@ -111,18 +142,23 @@ class FizzBuzzStatisticsHandler(FizzBuzzHandler):
 
 # }}}
 
-def getApp():
+def getApp(db=None):
+	args = {"db": db}
 	return Application([
-		(r"/fizzbuzz/sequence", FizzBuzzSequenceHandler),
-		(r"/fizzbuzz/statistics", FizzBuzzStatisticsHandler),
+		(r"/fizzbuzz/sequence", FizzBuzzSequenceHandler, args),
+		(r"/fizzbuzz/statistics", FizzBuzzStatisticsHandler, args),
     ])
 
 def startServer():
 	global IS_SERVER_STARTED
 	if IS_SERVER_STARTED:
 		return
+
+	database = os.getenv("FIZZBUZZ_SERVER_DB_NAME", ".fizzbuzz.db")
+	req_db = RequestsDB(database)
+
 	port = os.getenv("FIZZBUZZ_SERVER_PORT", "8888")
-	getApp().listen(int(port))
+	getApp(req_db).listen(int(port))
 	LOGGER.info("server started")
 	IS_SERVER_STARTED = True
 	IOLoop.current().start()

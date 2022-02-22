@@ -4,6 +4,7 @@
 from tornado import testing, gen
 from tornado.escape import json_encode, json_decode
 
+from lib.db import RequestsDB
 from server import getApp
 
 class TestFizzBuzzServer(testing.AsyncHTTPTestCase):
@@ -12,7 +13,8 @@ class TestFizzBuzzServer(testing.AsyncHTTPTestCase):
 	HTTP_STATUS_METHOD_NO_ALLOWED = 405
 
 	def get_app(self):
-		return getApp()
+		self.db = RequestsDB(database=".test.db")
+		return getApp(self.db)
 
 	def test_succcessfull_req(self):
 		resp = self.fetch(
@@ -25,6 +27,7 @@ class TestFizzBuzzServer(testing.AsyncHTTPTestCase):
 		res = json_decode(resp.body).get("sequence")
 		want = "1,2,fizz,4,buzz,fizz,7,8,fizz,buzz,11,fizz,13,14,fizzbuzz,16,17,fizz,19,buzz"
 		self.assertEqual(res, want)
+		self.db.clear()
 
 	def test_huge_request(self):
 		resp = self.fetch(
@@ -34,6 +37,7 @@ class TestFizzBuzzServer(testing.AsyncHTTPTestCase):
 			body=json_encode({"int1": 3, "int2": 5, "limit": 1000000, "str1": "fizz", "str2": "buzz"}),
 		)
 		self.assertEqual(resp.code, self.HTTP_STATUS_OK)
+		self.db.clear()
 
 	def test_too_big_limit_request(self):
 		limit = 10000000
@@ -96,7 +100,8 @@ class TestLoadFizzBuzzServer(testing.AsyncHTTPTestCase):
 	HTTP_STATUS_OK = 200
 
 	def get_app(self):
-		return getApp()
+		self.db = RequestsDB(database=".test.db")
+		return getApp(self.db)
 
 	@testing.gen_test
 	async def test_500_parallel_req(self):
@@ -113,6 +118,7 @@ class TestLoadFizzBuzzServer(testing.AsyncHTTPTestCase):
 		])
 		for res in results:
 			self.assertEqual(res.code, self.HTTP_STATUS_OK)
+		self.db.clear()
 
 if __name__ == "__main__":
 	testing.main()

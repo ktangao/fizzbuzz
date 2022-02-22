@@ -1,0 +1,17 @@
+version: '3'
+
+services:
+  poetry:
+    image: python
+    restart: on-failure
+    volumes:
+      - ./:/var/fizzbuzz/
+    command: sh -c "pip install poetry && cd /var/fizzbuzz/ && poetry install && poetry update && poetry run python server.py"
+    environment:
+      - FIZZBUZZ_SERVER_DB_NAME=.fizzbuzz.docker.db
+      - FIZZBUZZ_STATS_CACHE_LIFE_TIME=86400
+      - FIZZBUZZ_QUEUE_MAX_SIZE=100
+      - FIZZBUZZ_SERVER_PORT=8888
+    ports:
+      - 8888:8888
+

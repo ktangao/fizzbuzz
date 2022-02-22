@@ -18,6 +18,7 @@ class RequestsDB:
 	"""
 
 	def __init__(self, database=".requests.db"):
+		self.database = database
 		self.connection = sqlite3.connect(database, check_same_thread=False)
 		self._init_table()
 
@@ -63,6 +64,19 @@ class RequestsDB:
 		cur.execute(sql)
 		return cur.fetchone()
 
+	def get_most_hit(self, max_rows=10):
+		sql = f"""
+			SELECT id, sequence, occurrence FROM requests
+			ORDER BY occurrence DESC
+			LIMIT {max_rows}
+		"""
+		conn = sqlite3.connect(self.database, check_same_thread=False)
+		cur = conn.cursor()
+		cur.execute(sql)
+		res = cur.fetchall()
+		conn.close()
+		return res
+		
 	def clear(self):
 		"""
 		Remove all rows in the db

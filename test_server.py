@@ -118,6 +118,11 @@ class TestLoadFizzBuzzServer(testing.AsyncHTTPTestCase):
 		])
 		for res in results:
 			self.assertEqual(res.code, self.HTTP_STATUS_OK)
+
+		res = self.db.get_most_hit()
+		self.assertEqual(len(res), 1)
+		# check that the number of occurences is equals to the load
+		self.assertEqual(res[0][2], load)
 		self.db.clear()
 
 if __name__ == "__main__":

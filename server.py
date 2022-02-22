@@ -118,11 +118,11 @@ class FizzBuzzSequenceHandler(FizzBuzzHandler):
 		self.sequence = await IOLoop.current().run_in_executor(None, seqGenerator.sequence)
 		self._reply_success("sequence", self.sequence)
 
-	async def on_finish(self):
+	def on_finish(self):
 		if self.error is not None:
 			return
 		if self.db:
-			await IOLoop.current().run_in_executor(
+			IOLoop.current().run_in_executor(
 				None, partial(self.db.add, self.req_id, self.sequence))
 
 	def _reply_success(self, key, val):

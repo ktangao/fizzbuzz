@@ -1,4 +1,5 @@
 .test_add
 .test.db
 .fizzbuzz.db
+.testload.db
 __pycache__

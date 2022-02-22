@@ -16,6 +16,7 @@ logging.basicConfig(format="%(name)s: %(asctime)s: %(levelname)s: %(message)s")
 LOGGER = logging.getLogger("fizzbuzz")
 LOGGER.setLevel(logging.INFO)
 IS_SERVER_STARTED = False
+REQUESTS_QUEUE = []
 
 __all__ = (
 	"getApp",
@@ -67,8 +68,9 @@ class FizzBuzzHandler(RequestHandler):
 # {{{ FizzBuzz Sequence handler
 
 class FizzBuzzSequenceHandler(FizzBuzzHandler):
-	def initialize(self, db=None):
+	def initialize(self, db=None, queue_max_size=100):
 		self.db = db
+		self.queue_max_size = queue_max_size
 		self.error = None
 
 	def prepare(self):
@@ -121,9 +123,12 @@ class FizzBuzzSequenceHandler(FizzBuzzHandler):
 	def on_finish(self):
 		if self.error is not None:
 			return
-		if self.db:
-			IOLoop.current().run_in_executor(
-				None, partial(self.db.add, self.req_id, self.sequence))
+
+		global REQUESTS_QUEUE
+		REQUESTS_QUEUE.append((self.req_id, self.sequence))
+		if self.db and len(REQUESTS_QUEUE) >= self.queue_max_size:
+			self.db.add_batch(REQUESTS_QUEUE)
+			REQUESTS_QUEUE = []
 
 	def _reply_success(self, key, val):
 		super()._reply_success(key, val)
@@ -142,8 +147,8 @@ class FizzBuzzStatisticsHandler(FizzBuzzHandler):
 
 # }}}
 
-def getApp(db=None):
-	args = {"db": db}
+def getApp(db=None, queue_max_size=100):
+	args = {"db": db, "queue_max_size": int(queue_max_size)}
 	return Application([
 		(r"/fizzbuzz/sequence", FizzBuzzSequenceHandler, args),
 		(r"/fizzbuzz/statistics", FizzBuzzStatisticsHandler, args),
@@ -157,8 +162,10 @@ def startServer():
 	database = os.getenv("FIZZBUZZ_SERVER_DB_NAME", ".fizzbuzz.db")
 	req_db = RequestsDB(database)
 
+	queue_max_size = os.getenv("FIZZBUZZ_QUEUE_MAX_SIZE", "100")
+
 	port = os.getenv("FIZZBUZZ_SERVER_PORT", "8888")
-	getApp(req_db).listen(int(port))
+	getApp(req_db, queue_max_size).listen(int(port))
 	LOGGER.info("server started")
 	IS_SERVER_STARTED = True
 	IOLoop.current().start()

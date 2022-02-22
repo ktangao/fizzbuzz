@@ -55,6 +55,12 @@ class RequestsDB:
 		if commit:
 			self.connection.commit()
 
+	def add_batch(self, recs, commit=True):
+		for rec in recs:
+			self.add(rec[0], rec[1], False)
+		if commit:
+			self.connection.commit()
+
 	def get(self, reqId):
 		sql = f"""
 			SELECT sequence from requests

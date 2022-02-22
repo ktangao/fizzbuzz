@@ -4,6 +4,8 @@
 from functools import partial
 import logging
 import os
+import signal
+import sys
 import time
 
 from tornado.escape import (json_decode, json_encode)
@@ -222,6 +224,14 @@ def startServer():
 	app = getApp(req_db, queue_max_size, stats_cache_life_time)
 	app.listen(int(port))
 	LOGGER.info("server started")
+
+	def signal_handler(signum, frame=None):
+		flush_queue(req_db)
+		stopServer()
+		sys.exit(0)
+
+	for sig in [signal.SIGTERM, signal.SIGINT]:
+		signal.signal(sig, signal_handler)
 	IS_SERVER_STARTED = True
 	IOLoop.current().start()
 

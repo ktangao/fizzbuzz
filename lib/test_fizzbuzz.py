@@ -38,6 +38,11 @@ class TestFizzBuzzSeqGenerator(unittest.TestCase):
 			with self.assertRaisesRegex(ValueError, want):
 				FizzBuzzSeqGenerator(3, 5, 100, str1, str2)
 
+	def test_forbidden_char(self):
+		want = "characters .* are forbidden"
+		with self.assertRaisesRegex(ValueError, want):
+			FizzBuzzSeqGenerator(3, 5, 100, "fi,zz", "bu_zz")
+
 	def test_sequence(self):
 		for (int1, int2, limit, str1, str2) in [
 			("3", "5", "20", "fizz", "buzz"),

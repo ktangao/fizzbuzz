@@ -44,6 +44,10 @@ class FizzBuzzSeqGenerator:
 			raise ValueError(f"str1 and str2 must be of type string")
 		if len(self.str1) > self.maxStrLen or len(self.str2) > self.maxStrLen:
 			raise ValueError(f"max len of str1 and str2 is {self.maxStrLen}")
+		forbidden = [",", "_"]
+		for car in forbidden:
+			if car in self.str1 or car in self.str2:
+				raise ValueError(f"characters {forbidden} are forbidden")
 
 	def sequence(self):
 		res = ""

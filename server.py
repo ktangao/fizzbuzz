@@ -20,6 +20,7 @@ LOGGER = logging.getLogger("fizzbuzz")
 LOGGER.setLevel(logging.INFO)
 IS_SERVER_STARTED = False
 REQUESTS_QUEUE = []
+MOST_QUERIED = {}
 STATS_CACHE = None
 
 __all__ = (
@@ -116,9 +117,17 @@ class FizzBuzzSequenceHandler(FizzBuzzHandler):
             self._reply_error_and_finish()
             return
 
+        self.req_id = self._get_req_id()
+
+        # check in the most queried cache first
+        global MOST_QUERIED
+        self.sequence = MOST_QUERIED.get(self.req_id)
+        if self.sequence:
+            self._reply_success("sequence", self.sequence)
+            return
+
         # check if request is on the db just return the retrieved value.
         # make the db interaction asynchroneous.
-        self.req_id = self._get_req_id()
         if self.db:
             self.sequence = await IOLoop.current().run_in_executor(
                 None, partial(self.db.get, self.req_id))
@@ -174,6 +183,9 @@ class FizzBuzzStatisticsHandler(FizzBuzzHandler):
         res = await IOLoop.current().run_in_executor(
             None, self.db.get_most_hit
         )
+
+        global MOST_QUERIED
+        MOST_QUERIED.clear()
         recs = []
         if res is not None:
             for rec in res:
@@ -187,10 +199,11 @@ class FizzBuzzStatisticsHandler(FizzBuzzHandler):
                     "sequence": rec[1],
                     "nb_occurences": rec[2]
                 })
+                MOST_QUERIED[rec[0]] = rec[1]
 
         STATS_CACHE = (now, recs)
         self._reply_success(recs)
-        
+
     def _reply_success(self, stats):
         self._set_reply_content_type()
         self.set_status(self.HTTP_STATUS_OK if stats else self.HTTP_STATUS_NO_CONTENT)

@@ -91,8 +91,16 @@ class FizzBuzzSequenceHandler(FizzBuzzHandler):
         if not self._check_content_type():
             return
         self.retrievedArgs = {}
-        for key in ["int1", "int2", "limit", "str1", "str2"]:
+        try:
             body = json_decode(self.request.body)
+        except:
+            self.error = {
+                "code": self.HTTP_BAD_REQ_CODE,
+                "msg": "unable to decode the provided body",
+            }
+            return
+
+        for key in ["int1", "int2", "limit", "str1", "str2"]:
             val = body.get(key)
             if val is None:
                 self.error = {

@@ -16,6 +16,18 @@ class TestFizzBuzzServer(testing.AsyncHTTPTestCase):
         self.db = RequestsDB(database=".test.db")
         return getApp(self.db)
 
+    def test_empty_body(self):
+        resp = self.fetch(
+            "/fizzbuzz/sequence",
+            method="POST",
+            headers={"Content-Type": "application/json"},
+            allow_nonstandard_methods=True,
+        )
+        self.assertEqual(resp.code, self.HTTP_STATUS_BAD_REQUEST)
+        res = json_decode(resp.body).get("error")
+        want = "unable to decode the provided body"
+        self.assertEqual(res, want)
+
     def test_succcessfull_req(self):
         resp = self.fetch(
             "/fizzbuzz/sequence",
